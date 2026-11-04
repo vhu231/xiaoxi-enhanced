@@ -92,6 +92,7 @@ def check_direct_hook_signatures(classes, source, path, errors, checks):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('apk');parser.add_argument('--out',default='work/host-abi-full.json');args=parser.parse_args()
+    Path(args.out).parent.mkdir(parents=True,exist_ok=True)
     classes=apk_classes(args.apk);Path(args.out).write_text(json.dumps(classes,ensure_ascii=False),encoding='utf-8')
     errors=[];checks=0
     for path in Path('app/src/main/java').rglob('*.java'):

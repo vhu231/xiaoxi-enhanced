@@ -9,7 +9,7 @@
 - 模块声明位于 `app/src/main/resources/META-INF/xposed/`：`java_init.list`、`scope.list`、`module.prop`。`minApiVersion/targetApiVersion` 均为 102，启用固定 scope，首轮不启用热重载。
 - API 102 AAR 解出的 `lib/xposed-api-102.jar` 仅供编译，框架 API、旧 `de.robv` 类和 AndroidX 注解均不进入模块 DEX。
 - 宿主 SharedPreferences、数据库、模型预设、Prompt、TTS、MCP、定时任务和独立 UI 页面栈保持原有行为。
-- API 82 回退包为 `outputs/xiaoxi-byok-api82.apk`，两个版本不得同时启用。运行时的框架版本、模块发现和 Hook 执行仍需人工验收，不能由编译或静态 ABI 检查代替。
+- API 82 实现保留在 `legacy` 分支，API 102 为默认 `main` 分支。两个版本不得同时启用。运行时的框架版本、模块发现和 Hook 执行仍需人工验收，不能由编译或静态 ABI 检查代替。
 
 ## 4.0 完整 Plan（待人工验证）
 

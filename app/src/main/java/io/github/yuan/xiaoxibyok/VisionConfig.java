@@ -1,7 +1,6 @@
 package io.github.yuan.xiaoxibyok;
 
 import android.content.SharedPreferences;
-import de.robv.android.xposed.XposedHelpers;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.json.*;
@@ -35,8 +34,8 @@ final class VisionConfig {
     String apiKey = followChat ? Host.text(source, "f") : key;
     Set<Object> modalities = new LinkedHashSet<>();
     Class<?> input = Host.cls("com.flyme.agentos.core.InputModality");
-    modalities.add(XposedHelpers.getStaticObjectField(input, "TEXT"));
-    modalities.add(XposedHelpers.getStaticObjectField(input, "IMAGE"));
+    modalities.add(Reflect.getStaticObjectField(input, "TEXT"));
+    modalities.add(Reflect.getStaticObjectField(input, "IMAGE"));
     Object originalCapabilities = Host.field(chat, "f");
     Object limits = Host.field(originalCapabilities, "c");
     Object window = Host.field(originalCapabilities, "a");

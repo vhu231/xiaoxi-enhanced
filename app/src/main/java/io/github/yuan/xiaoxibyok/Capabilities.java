@@ -96,14 +96,14 @@ final class Capabilities {
   }
 
   static Object enumeration(String type, String value) {
-    return de.robv.android.xposed.XposedHelpers.callStaticMethod(
+    return Reflect.callStaticMethod(
         Host.cls("com.flyme.agentos.agent.domain.profile." + type), "valueOf", value);
   }
 
   static Object decodeProfile(String type, String text) {
     Object service = Host.services.get("profiles");
     Object companion =
-        de.robv.android.xposed.XposedHelpers.getStaticObjectField(
+        Reflect.getStaticObjectField(
             Host.cls("com.flyme.agentos.agent.domain.profile." + type), "Companion");
     return Host.call(Host.field(service, "b"), "b", Host.call(companion, "serializer"), text);
   }

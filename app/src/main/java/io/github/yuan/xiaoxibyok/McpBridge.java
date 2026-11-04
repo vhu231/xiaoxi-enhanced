@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.XposedHelpers;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -46,7 +45,7 @@ final class McpBridge {
       return disconnect(account, serverId, false);
     }
     Object prepared =
-        XposedHelpers.callStaticMethod(
+        Reflect.callStaticMethod(
             Host.cls("com.google.android.gms.internal.mlkit_vision_common.u4"), "m", write);
     return Host.await(
         Host.services.get("mcpCoordinator"),
@@ -59,7 +58,7 @@ final class McpBridge {
   }
 
   static Object constant(String type, String name) {
-    return XposedHelpers.getStaticObjectField(Host.cls(type), name);
+    return Reflect.getStaticObjectField(Host.cls(type), name);
   }
 
   static JSONArray parseImport(String json) throws Exception {
@@ -184,7 +183,7 @@ final class McpBridge {
             Collections.emptyList(),
             Collections.emptyList());
     Object write =
-        XposedHelpers.callStaticMethod(
+        Reflect.callStaticMethod(
             Host.cls(CLOUD + "V1"),
             "f",
             definition,
@@ -192,7 +191,7 @@ final class McpBridge {
             System.currentTimeMillis(),
             constant(CLOUD + "db.McpInstallOrigin", "USER"),
             Json.o("xiaoxiCustom", true).toString());
-    return XposedHelpers.callStaticMethod(
+    return Reflect.callStaticMethod(
         Host.cls("com.google.android.gms.internal.mlkit_vision_common.u4"), "m", write);
   }
 

@@ -10,7 +10,6 @@ import android.text.*;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
-import de.robv.android.xposed.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -234,7 +233,7 @@ final class NativeUi {
   static void error(Throwable e) {
     Throwable cause = e;
     while (cause.getCause() != null) cause = cause.getCause();
-    XposedBridge.log(e);
+    Xposed.log(e);
     if (current != null && current.currentPage != null && !current.currentPage.ready)
       current.currentPage.failed = true;
     String message = cause.getMessage();
@@ -1951,7 +1950,7 @@ final class NativeUi {
               work(
                   () -> {
                     Object priority =
-                        XposedHelpers.getStaticObjectField(
+                        Reflect.getStaticObjectField(
                             Host.cls("com.flyme.agentos.agent.domain.skill.deps.ProvisionPriority"),
                             "BACKGROUND");
                     return Host.await(deps, "r", id, Capabilities.skillDir(id), priority);

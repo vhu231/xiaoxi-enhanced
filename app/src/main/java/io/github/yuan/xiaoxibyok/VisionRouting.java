@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 
 final class VisionRouting {
@@ -33,7 +32,7 @@ final class VisionRouting {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.llm.impl.routing.k"),
         "a",
         new XC_MethodHook() {
@@ -41,20 +40,20 @@ final class VisionRouting {
             if (!imageBinding(Host.field(p.thisObject, "a")) || p.args[0] == null) return;
             Object request = p.args[0];
             if (Host.text(request, "e").isEmpty())
-              XposedHelpers.setObjectField(request, "e", UUID.randomUUID().toString());
+              Reflect.setObjectField(request, "e", UUID.randomUUID().toString());
             Trace.Parent toolParent = Trace.toolParent.get();
             Trace.Run parent = Trace.parsing.get();
             if (toolParent != null) {
               if (Host.text(request, "g").isEmpty())
-                XposedHelpers.setObjectField(request, "g", toolParent.session);
-              XposedHelpers.setAdditionalInstanceField(
+                Reflect.setObjectField(request, "g", toolParent.session);
+              Reflect.setAdditionalInstanceField(
                   request, "xiaoxi.parentRequestId", toolParent.requestId);
             } else if (parent != null && Host.text(request, "g").isEmpty()) {
-              XposedHelpers.setObjectField(request, "g", parent.session);
+              Reflect.setObjectField(request, "g", parent.session);
             }
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.llm.impl.routing.o"),
         "c",
         new XC_MethodHook() {
@@ -63,7 +62,7 @@ final class VisionRouting {
             VisionConfig config = new VisionConfig();
             if (!config.enabled) return;
             Object chatFunction =
-                XposedHelpers.getStaticObjectField(
+                Reflect.getStaticObjectField(
                     Host.cls("com.flyme.agentos.core.ModelFunction"), "CHAT");
             Object chat = Host.call(p.thisObject, "c", chatFunction, null);
             Object snapshot = config.snapshot(chat);
@@ -71,7 +70,7 @@ final class VisionRouting {
             p.setResult(snapshot);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.llm.impl.routing.l"),
         "b",
         new XC_MethodHook() {
@@ -81,7 +80,7 @@ final class VisionRouting {
             if (imageBinding(p.thisObject)) Host.call(p.thisObject, "invalidate");
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.phone.toolprovider.w0"),
         "b",
         new XC_MethodHook() {

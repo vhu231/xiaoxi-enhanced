@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 import org.json.*;
 
@@ -47,7 +46,7 @@ final class TaskToolScope implements AutoCloseable {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.agent.core.loop.O"),
         "v0",
         new XC_MethodHook() {
@@ -61,7 +60,7 @@ final class TaskToolScope implements AutoCloseable {
             p.setResult(filtered);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.agent.core.loop.O"),
         "O",
         new XC_MethodHook() {
@@ -103,7 +102,7 @@ final class TaskToolScope implements AutoCloseable {
             Host.make("com.flyme.agentos.agent.core.loop.AgentLoop$prepareRun$5", loop, null),
             Host.make("com.flyme.agentos.agent.core.loop.AgentLoop$prepareRun$6", loop, null),
             Host.make("com.flyme.agentos.agent.core.loop.M", loop),
-            XposedHelpers.getStaticObjectField(
+            Reflect.getStaticObjectField(
                 Host.cls("com.flyme.agentos.agent.core.tool.ToolInvocationSource"), "DEFAULT"));
     Object previous = Host.field(loop, "P");
     String eventId = UUID.randomUUID().toString();
@@ -118,7 +117,7 @@ final class TaskToolScope implements AutoCloseable {
             "status", "running");
     Store.event(eventId, sid, "scheduler.tool", start, event);
     try {
-      XposedHelpers.setObjectField(loop, "P", executionContext);
+      Reflect.setObjectField(loop, "P", executionContext);
       Object call = Host.make("Y6.l0", requestId, tool, arguments.toString());
       Object result =
           Host.awaitIn(
@@ -132,7 +131,7 @@ final class TaskToolScope implements AutoCloseable {
       Json.put(event, "error", error.toString());
       throw error;
     } finally {
-      XposedHelpers.setObjectField(loop, "P", previous);
+      Reflect.setObjectField(loop, "P", previous);
       Json.put(event, "end", System.currentTimeMillis());
       Store.event(eventId, sid, "scheduler.tool", start, event);
     }
@@ -149,7 +148,7 @@ final class TaskToolScope implements AutoCloseable {
     if (result == null) return "";
     if (Host.cls("com.flyme.agentos.agent.core.tool.Y").isInstance(result)) {
       String content = Host.text(result, "b");
-      if (!XposedHelpers.getBooleanField(result, "a"))
+      if (!Reflect.getBooleanField(result, "a"))
         throw new IllegalStateException(content.isEmpty() ? "原生工具执行失败" : content);
       return content;
     }

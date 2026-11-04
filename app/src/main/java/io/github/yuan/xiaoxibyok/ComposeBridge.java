@@ -4,7 +4,6 @@ import android.app.*;
 import android.content.*;
 import android.view.*;
 import android.widget.*;
-import de.robv.android.xposed.*;
 import java.util.*;
 
 final class ComposeBridge {
@@ -23,7 +22,7 @@ final class ComposeBridge {
   static final Set<Object> inputComposers = Collections.newSetFromMap(new WeakHashMap<>());
 
   static Object modifier() {
-    return XposedHelpers.getStaticObjectField(Host.cls("androidx.compose.ui.n"), "a");
+    return Reflect.getStaticObjectField(Host.cls("androidx.compose.ui.n"), "a");
   }
 
   static int composer(Object[] args) {
@@ -37,7 +36,7 @@ final class ComposeBridge {
   }
 
   static void view(Object composer, Object modifier, Object factory, Object update) {
-    XposedHelpers.callStaticMethod(
+    Reflect.callStaticMethod(
         Host.cls("androidx.compose.ui.viewinterop.g"),
         "a",
         factory,
@@ -59,7 +58,7 @@ final class ComposeBridge {
               NativeUi.show(MainHook.resumedActivity.get());
               return Host.unit();
             });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.components.list.i"),
         "a",
         new XC_MethodHook() {
@@ -78,10 +77,10 @@ final class ComposeBridge {
             row[9] = click;
             row[11] = 3078;
             row[12] = 0;
-            XposedBridge.invokeOriginalMethod(p.method, p.thisObject, row);
+            Xposed.invokeOriginalMethod(p.method, p.thisObject, row);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Activity.class,
         "onResume",
         new XC_MethodHook() {
@@ -89,7 +88,7 @@ final class ComposeBridge {
             NativeUi.onResume((Activity) p.thisObject);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Activity.class,
         "onDestroy",
         new XC_MethodHook() {
@@ -98,7 +97,7 @@ final class ComposeBridge {
                 .isInstance(p.thisObject)) NativeUi.settingsDestroyed((Activity) p.thisObject);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.components.input.z"),
         "c",
         new XC_MethodHook() {
@@ -108,7 +107,7 @@ final class ComposeBridge {
             Object c = p.args[ci];
             if (inputComposers.contains(c)) return;
             Object parent =
-                XposedHelpers.callStaticMethod(Host.cls("androidx.compose.runtime.b"), "z", c);
+                Reflect.callStaticMethod(Host.cls("androidx.compose.runtime.b"), "z", c);
             Object[] captured = p.args.clone();
             java.lang.reflect.Member method = p.method;
             Object owner = p.thisObject;
@@ -145,7 +144,7 @@ final class ComposeBridge {
                                 for (int i = ci + 1; i < forwarded.length - 2; i++)
                                   forwarded[i] = 0;
                                 try {
-                                  XposedBridge.invokeOriginalMethod(method, owner, forwarded);
+                                  Xposed.invokeOriginalMethod(method, owner, forwarded);
                                 } catch (Throwable e) {
                                   throw new RuntimeException(e);
                                 }
@@ -158,7 +157,7 @@ final class ComposeBridge {
             p.setResult(null);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.chat.a0"),
         "f",
         new XC_MethodHook() {

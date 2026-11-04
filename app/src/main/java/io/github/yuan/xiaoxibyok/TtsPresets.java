@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.XposedHelpers;
 import org.json.JSONObject;
 
 /** Resolve and freeze scoped TTS settings before a queued item is synthesized. */
@@ -33,10 +32,10 @@ final class TtsPresets {
               Host.text(current, "a"),
               preset.optString("language", Host.text(current, "d")),
               nativeProvider
-                  ? (float) preset.optDouble("speed", XposedHelpers.getFloatField(current, "b"))
+                  ? (float) preset.optDouble("speed", Reflect.getFloatField(current, "b"))
                   : 1f,
               nativeProvider
-                  ? (float) preset.optDouble("pitch", XposedHelpers.getFloatField(current, "c"))
+                  ? (float) preset.optDouble("pitch", Reflect.getFloatField(current, "c"))
                   : 1f);
     } else {
       config =
@@ -47,8 +46,8 @@ final class TtsPresets {
               nativeProvider ? (float) preset.optDouble("speed", 1) : 1f,
               nativeProvider ? (float) preset.optDouble("pitch", 1) : 1f);
     }
-    XposedHelpers.setAdditionalInstanceField(config, "xiaoxi.ttsPreset", preset);
-    XposedHelpers.setAdditionalInstanceField(config, "xiaoxi.ttsSession", session);
+    Reflect.setAdditionalInstanceField(config, "xiaoxi.ttsPreset", preset);
+    Reflect.setAdditionalInstanceField(config, "xiaoxi.ttsSession", session);
     return config;
   }
 }

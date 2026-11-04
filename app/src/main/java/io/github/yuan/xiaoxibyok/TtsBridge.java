@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -22,7 +21,7 @@ final class TtsBridge {
             throw new UnsupportedOperationException(method.toString());
           Object collector = args[0], completion = args[1];
           workers.execute(() -> synthesize(text, preset, session, collector, completion));
-          return XposedHelpers.callStaticMethod(
+          return Reflect.callStaticMethod(
               Host.cls("kotlin.coroutines.intrinsics.IntrinsicsKt"), "getCOROUTINE_SUSPENDED");
         });
   }
@@ -59,9 +58,7 @@ final class TtsBridge {
       Object context = Host.call(completion, "getContext");
       Object job =
           Host.call(
-              context,
-              "get",
-              XposedHelpers.getStaticObjectField(Host.cls("kotlinx.coroutines.o0"), "a"));
+              context, "get", Reflect.getStaticObjectField(Host.cls("kotlinx.coroutines.o0"), "a"));
       if (job != null)
         cancellationHandle =
             Host.call(
@@ -174,7 +171,7 @@ final class TtsBridge {
       }
       Json.put(record, "status", error instanceof CancellationException ? "cancelled" : "error");
       Json.put(record, "error", error.toString());
-      outcome = XposedHelpers.callStaticMethod(Host.cls("kotlin.ResultKt"), "createFailure", error);
+      outcome = Reflect.callStaticMethod(Host.cls("kotlin.ResultKt"), "createFailure", error);
     } finally {
       if (cancellationHandle != null) Host.call(cancellationHandle, "dispose");
       Json.put(record, "end", System.currentTimeMillis());
@@ -190,20 +187,18 @@ final class TtsBridge {
 
   static void install() {
     Host.capture("com.flyme.agentos.voice.impl.tts.t", "ttsPlayback");
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.voice.impl.tts.b"),
         "a",
         new XC_MethodHook() {
           protected void beforeHookedMethod(MethodHookParam p) {
             Host.services.put("ttsConfig", p.args[0]);
             JSONObject preset =
-                (JSONObject)
-                    XposedHelpers.getAdditionalInstanceField(p.args[0], "xiaoxi.ttsPreset");
+                (JSONObject) Reflect.getAdditionalInstanceField(p.args[0], "xiaoxi.ttsPreset");
             if (preset == null) preset = TtsPresets.resolve("", "");
             String provider = preset.optString("provider", "native");
             if (!provider.equals("vocu") && !provider.equals("custom")) return;
-            Object session =
-                XposedHelpers.getAdditionalInstanceField(p.args[0], "xiaoxi.ttsSession");
+            Object session = Reflect.getAdditionalInstanceField(p.args[0], "xiaoxi.ttsSession");
             p.setResult(
                 flow((String) p.args[1], preset, session == null ? "" : session.toString()));
           }

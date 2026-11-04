@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 import org.json.*;
 
@@ -15,7 +14,7 @@ final class Compression {
               "com.flyme.agentos.agent.core.context.s",
               0,
               count,
-              summary == null ? 0 : XposedHelpers.getIntField(summary, "f"),
+              summary == null ? 0 : Reflect.getIntField(summary, "f"),
               0,
               0,
               0,
@@ -26,7 +25,7 @@ final class Compression {
               0,
               0);
     Object route =
-        XposedHelpers.getStaticObjectField(Host.cls(PREFIX + "CompressionRoute"), "CHECK_ONLY");
+        Reflect.getStaticObjectField(Host.cls(PREFIX + "CompressionRoute"), "CHECK_ONLY");
     Object decision =
         Host.make(
             PREFIX + "l",
@@ -62,25 +61,25 @@ final class Compression {
     JSONObject settings = Store.settings(sid);
     double ratio = settings.optDouble("compressionThreshold", 0);
     int minimum = settings.optInt("compressionMinTokens", 0);
-    if (ratio > 0 && ratio <= 1) XposedHelpers.setFloatField(engine, "k", (float) ratio);
-    if (minimum > 0) XposedHelpers.setIntField(engine, "l", minimum);
+    if (ratio > 0 && ratio <= 1) Reflect.setFloatField(engine, "k", (float) ratio);
+    if (minimum > 0) Reflect.setIntField(engine, "l", minimum);
   }
 
   static void install() {
     SummaryModel.install();
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls(PREFIX + "k"),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
             String prompt = Store.get("compression", "default").optString("prompt");
             if (!prompt.isEmpty()) {
-              XposedHelpers.setObjectField(p.thisObject, "b", prompt);
-              XposedHelpers.setObjectField(p.thisObject, "g", prompt);
+              Reflect.setObjectField(p.thisObject, "b", prompt);
+              Reflect.setObjectField(p.thisObject, "g", prompt);
             }
           }
         });
     for (String method : new String[] {"i", "j"})
-      XposedBridge.hookAllMethods(
+      Xposed.hookAllMethods(
           Host.cls(PREFIX + "k"),
           method,
           new XC_MethodHook() {
@@ -126,9 +125,9 @@ final class Compression {
                     Json.str(Host.field(result, "q"))));
           }
         };
-    XposedBridge.hookAllMethods(Host.cls(PREFIX + "p"), "a", pass);
-    XposedBridge.hookAllMethods(Host.cls(PREFIX + "p"), "c", pass);
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(Host.cls(PREFIX + "p"), "a", pass);
+    Xposed.hookAllMethods(Host.cls(PREFIX + "p"), "c", pass);
+    Xposed.hookAllMethods(
         Host.cls(PREFIX + "p"),
         "d",
         new XC_MethodHook() {

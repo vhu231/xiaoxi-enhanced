@@ -4,7 +4,6 @@ import android.app.*;
 import android.database.Cursor;
 import android.os.*;
 import dalvik.system.DexClassLoader;
-import de.robv.android.xposed.*;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -13,6 +12,7 @@ import org.json.*;
 
 final class Host {
   static ClassLoader cl, bridge;
+  static Application application;
   static final Map<String, Object> services = new ConcurrentHashMap<>(),
       databases = new ConcurrentHashMap<>(),
       contexts = new ConcurrentHashMap<>();
@@ -27,15 +27,16 @@ final class Host {
   }
 
   static Application app() {
-    return AndroidAppHelper.currentApplication();
+    if (application == null) throw new IllegalStateException("宿主 Application 尚未就绪");
+    return application;
   }
 
   static Class<?> cls(String name) {
-    return XposedHelpers.findClass(name, cl);
+    return Reflect.findClass(name, cl);
   }
 
   static Object field(Object o, String n) {
-    return XposedHelpers.getObjectField(o, n);
+    return Reflect.getObjectField(o, n);
   }
 
   static String text(Object o, String n) {
@@ -43,15 +44,15 @@ final class Host {
   }
 
   static Object call(Object o, String n, Object... args) {
-    return XposedHelpers.callMethod(o, n, args);
+    return Reflect.callMethod(o, n, args);
   }
 
   static Object make(String n, Object... args) {
-    return XposedHelpers.newInstance(cls(n), args);
+    return Reflect.newInstance(cls(n), args);
   }
 
   static Object unit() {
-    return XposedHelpers.getStaticObjectField(cls("kotlin.Unit"), "INSTANCE");
+    return Reflect.getStaticObjectField(cls("kotlin.Unit"), "INSTANCE");
   }
 
   static Object function(String name, Function<Object[], Object> fn) {
@@ -75,7 +76,7 @@ final class Host {
   }
 
   static void capture(String name, String key) {
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         cls(name),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
@@ -86,6 +87,14 @@ final class Host {
 
   static void install(ClassLoader loader) {
     cl = loader;
+    Xposed.hookAllMethods(
+        Application.class,
+        "onCreate",
+        new XC_MethodHook() {
+          protected void afterHookedMethod(MethodHookParam p) {
+            application = (Application) p.thisObject;
+          }
+        });
     McpBridge.install();
     TaskModelScope.install();
     TaskToolScope.install();
@@ -104,7 +113,7 @@ final class Host {
         new String[] {
           "net.zetetic.database.sqlcipher.SQLiteDatabase", "android.database.sqlite.SQLiteDatabase"
         })
-      XposedBridge.hookAllMethods(
+      Xposed.hookAllMethods(
           cls(databaseClass),
           "openDatabase",
           new XC_MethodHook() {
@@ -147,8 +156,7 @@ final class Host {
 
   static Object await(Object target, String method, Object... args) throws Exception {
     return awaitIn(
-        XposedHelpers.getStaticObjectField(
-            cls("kotlin.coroutines.EmptyCoroutineContext"), "INSTANCE"),
+        Reflect.getStaticObjectField(cls("kotlin.coroutines.EmptyCoroutineContext"), "INSTANCE"),
         target,
         method,
         args);
@@ -157,8 +165,7 @@ final class Host {
   static Object awaitIn(Object context, Object target, String method, Object... args)
       throws Exception {
     if (bridge == null) {
-      String apk =
-          app().getPackageManager().getApplicationInfo("io.github.yuan.xiaoxibyok", 0).sourceDir;
+      String apk = Xposed.module().getModuleApplicationInfo().sourceDir;
       bridge = new DexClassLoader(apk, app().getCodeCacheDir().getPath(), null, cl);
     }
     CompletableFuture<Object> future = new CompletableFuture<>();
@@ -183,14 +190,14 @@ final class Host {
     all[args.length] = cont;
     Object result =
         target instanceof Class<?>
-            ? XposedHelpers.callStaticMethod((Class<?>) target, method, all)
+            ? Reflect.callStaticMethod((Class<?>) target, method, all)
             : call(target, method, all);
     if (result
-        != XposedHelpers.callStaticMethod(
+        != Reflect.callStaticMethod(
             cls("kotlin.coroutines.intrinsics.IntrinsicsKt"), "getCOROUTINE_SUSPENDED"))
       future.complete(result);
     result = future.get();
-    XposedHelpers.callStaticMethod(cls("kotlin.ResultKt"), "throwOnFailure", result);
+    Reflect.callStaticMethod(cls("kotlin.ResultKt"), "throwOnFailure", result);
     return result;
   }
 
@@ -205,7 +212,7 @@ final class Host {
           try {
             value = task.call();
           } catch (Throwable error) {
-            XposedBridge.log(error);
+            Xposed.log(error);
             main.post(() -> failed.accept(error));
             return;
           }
@@ -214,7 +221,7 @@ final class Host {
                 try {
                   done.accept(value);
                 } catch (Throwable error) {
-                  XposedBridge.log(error);
+                  Xposed.log(error);
                   failed.accept(error);
                 }
               });

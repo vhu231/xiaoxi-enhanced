@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 import org.json.*;
 
@@ -73,7 +72,7 @@ final class SummaryModel {
   }
 
   static void install() {
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls(Compression.PREFIX + "k"),
         new XC_MethodHook() {
           protected void beforeHookedMethod(MethodHookParam p) {

@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.lang.reflect.*;
 import java.util.*;
 import org.json.*;
@@ -39,7 +38,7 @@ final class Trace {
       session = Host.text(req, "g");
       requestId = Host.text(req, "e");
       caller = Host.text(req, "f");
-      Object parent = XposedHelpers.getAdditionalInstanceField(req, "xiaoxi.parentRequestId");
+      Object parent = Reflect.getAdditionalInstanceField(req, "xiaoxi.parentRequestId");
       parentRequestId = parent == null ? "" : parent.toString();
       Object t = Host.field(req, "h"), s = Host.field(req, "i");
       turn = t == null ? 0 : ((Number) t).intValue();
@@ -106,11 +105,10 @@ final class Trace {
     String requestId = Host.text(req, "e");
     if (requestId.isEmpty()) {
       synchronized (req) {
-        requestId =
-            (String) XposedHelpers.getAdditionalInstanceField(req, "xiaoxi.requestIdentity");
+        requestId = (String) Reflect.getAdditionalInstanceField(req, "xiaoxi.requestIdentity");
         if (requestId == null) {
           requestId = UUID.randomUUID().toString();
-          XposedHelpers.setAdditionalInstanceField(req, "xiaoxi.requestIdentity", requestId);
+          Reflect.setAdditionalInstanceField(req, "xiaoxi.requestIdentity", requestId);
         }
       }
     }
@@ -195,7 +193,7 @@ final class Trace {
       r.text.append(content);
       r.thinking.append(reason);
       for (Object tool : tools) tool(r, tool);
-      if (XposedHelpers.getBooleanField(chunk, "d")) {
+      if (Reflect.getBooleanField(chunk, "d")) {
         r.end = System.currentTimeMillis();
         r.status = "complete";
       }
@@ -248,7 +246,7 @@ final class Trace {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.agent.core.loop.O"),
         "O",
         new XC_MethodHook() {
@@ -263,17 +261,17 @@ final class Trace {
             toolParent.set((Parent) p.getObjectExtra("parent"));
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.phone.toolprovider.A"),
         "d",
         new XC_MethodHook() {
           protected void beforeHookedMethod(MethodHookParam p) {
             Parent parent = toolParent.get();
             if (parent != null && p.args.length > 4 && p.args[4] != null)
-              XposedHelpers.setAdditionalInstanceField(p.args[4], "xiaoxi.parent", parent);
+              Reflect.setAdditionalInstanceField(p.args[4], "xiaoxi.parent", parent);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls(
             "com.flyme.agentos.app.phone.toolprovider.FlymeImageAnalyzeProvider$analyzeByCloudVlm$1"),
         "invokeSuspend",
@@ -281,7 +279,7 @@ final class Trace {
           protected void beforeHookedMethod(MethodHookParam p) {
             p.setObjectExtra("parent", toolParent.get());
             Parent parent =
-                (Parent) XposedHelpers.getAdditionalInstanceField(p.thisObject, "xiaoxi.parent");
+                (Parent) Reflect.getAdditionalInstanceField(p.thisObject, "xiaoxi.parent");
             if (parent != null) toolParent.set(parent);
           }
 
@@ -289,14 +287,14 @@ final class Trace {
             toolParent.set((Parent) p.getObjectExtra("parent"));
           }
         });
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls("com.flyme.agentos.llm.impl.openai.OpenAiCompatibleClient$executeChatStream$1"),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
-            XposedHelpers.setAdditionalInstanceField(p.thisObject, "xiaoxi.run", parsing.get());
+            Reflect.setAdditionalInstanceField(p.thisObject, "xiaoxi.run", parsing.get());
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.llm.impl.openai.k"),
         "d",
         new XC_MethodHook() {
@@ -304,8 +302,7 @@ final class Trace {
             p.setObjectExtra("previous", parsing.get());
             Object req = p.args[2], collector = p.args[1];
             Run r;
-            if (req == null)
-              r = (Run) XposedHelpers.getAdditionalInstanceField(p.args[4], "xiaoxi.run");
+            if (req == null) r = (Run) Reflect.getAdditionalInstanceField(p.args[4], "xiaoxi.run");
             else {
               r = begin(req);
               Class<?> it = ((Method) p.method).getParameterTypes()[1];
@@ -326,22 +323,21 @@ final class Trace {
         new String[] {
           "OpenAiCompatibleClient$executeChatStream$3", "OpenAiCompatibleClient$chat$2"
         })
-      XposedBridge.hookAllMethods(
+      Xposed.hookAllMethods(
           Host.cls("com.flyme.agentos.llm.impl.openai." + name),
           "invokeSuspend",
           new XC_MethodHook() {
             protected void beforeHookedMethod(MethodHookParam p) {
               p.setObjectExtra("previous", parsing.get());
               Object req = Host.field(p.thisObject, "$request");
-              Run r =
-                  (Run) XposedHelpers.getAdditionalInstanceField(p.thisObject, "xiaoxi.attempt");
+              Run r = (Run) Reflect.getAdditionalInstanceField(p.thisObject, "xiaoxi.attempt");
               if (r == null) {
                 r =
                     p.thisObject.getClass().getName().endsWith("$chat$2")
-                            && XposedHelpers.getIntField(p.thisObject, "label") == 0
+                            && Reflect.getIntField(p.thisObject, "label") == 0
                         ? begin(req)
                         : run(req);
-                XposedHelpers.setAdditionalInstanceField(p.thisObject, "xiaoxi.attempt", r);
+                Reflect.setAdditionalInstanceField(p.thisObject, "xiaoxi.attempt", r);
               }
               parsing.set(r);
               p.setObjectExtra("run", r);
@@ -352,12 +348,12 @@ final class Trace {
               Object result = p.getResult();
               if (p.hasThrowable()) finish(r, p.getThrowable());
               else if (result
-                  != XposedHelpers.callStaticMethod(
+                  != Reflect.callStaticMethod(
                       Host.cls("kotlin.coroutines.intrinsics.IntrinsicsKt"),
                       "getCOROUTINE_SUSPENDED")) {
                 if (result != null
                     && result.getClass().getName().equals("com.flyme.agentos.llm.impl.openai.A")) {
-                  if (!XposedHelpers.getBooleanField(result, "a")) {
+                  if (!Reflect.getBooleanField(result, "a")) {
                     finish(
                         r,
                         new IllegalStateException(
@@ -379,7 +375,7 @@ final class Trace {
               parsing.set((Run) p.getObjectExtra("previous"));
             }
           });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("Th.b"),
         "e",
         new XC_MethodHook() {
@@ -392,7 +388,7 @@ final class Trace {
             if (usage != null) rawUsage(r, usage);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("L6.O"),
         "b",
         new XC_MethodHook() {
@@ -416,7 +412,7 @@ final class Trace {
                 "native:" + id,
                 sid,
                 Host.text(e, "g"),
-                XposedHelpers.getLongField(e, "h"),
+                Reflect.getLongField(e, "h"),
                 Json.o(
                     "trace",
                     Host.text(e, "b"),
@@ -436,7 +432,7 @@ final class Trace {
                     attrs));
           }
         });
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls("com.flyme.agentos.agent.core.context.t"),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
@@ -450,7 +446,7 @@ final class Trace {
                     "tokens",
                     p.args[3],
                     "limit",
-                    p.args[4] == null ? 0 : XposedHelpers.getIntField(p.args[4], "a"),
+                    p.args[4] == null ? 0 : Reflect.getIntField(p.args[4], "a"),
                     "report",
                     Json.str(p.args[6]),
                     "budget",

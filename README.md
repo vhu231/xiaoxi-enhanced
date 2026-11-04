@@ -1,39 +1,92 @@
 # 小溪 BYOK 增强
 
-面向魅族小溪 **13.1.1（versionCode 13001001）**的 LSPosed 模块，使用传统 Xposed API 82。模块将自定义 OpenAI-compatible Chat Completions 服务接入原应用，并补充提示词、上下文、技能、语音、定时任务和请求轨迹功能。
+针对实机小溪 13.1.1（versionCode 13001001）的 LSPosed 模块，使用 `io.github.libxposed:api:102.0.0`。
+
+## 5.0 API 102 迁移（待实机验收）
+
+- 模块入口改为 `XposedModule`，通过 `onModuleLoaded/onPackageReady` 初始化，仍只注入小溪主进程。
+- Hook 使用 `XposedInterface.Hooker`、`Chain` 和 `Invoker`；`Host` 提供薄适配层，业务逻辑不变，不再调用 legacy `de.robv.android.xposed`。
+- 模块声明位于 `app/src/main/resources/META-INF/xposed/`：`java_init.list`、`scope.list`、`module.prop`。`minApiVersion/targetApiVersion` 均为 102，启用固定 scope，首轮不启用热重载。
+- API 102 AAR 解出的 `lib/xposed-api-102.jar` 仅供编译，框架 API、旧 `de.robv` 类和 AndroidX 注解均不进入模块 DEX。
+- 宿主 SharedPreferences、数据库、模型预设、Prompt、TTS、MCP、定时任务和独立 UI 页面栈保持原有行为。
+- API 82 回退包为 `outputs/xiaoxi-byok-api82.apk`，两个版本不得同时启用。运行时的框架版本、模块发现和 Hook 执行仍需人工验收，不能由编译或静态 ABI 检查代替。
+
+## 4.0 完整 Plan（待人工验证）
+
+模型与生成页增加覆盖原生读屏接口、跟随聊天/独立视觉配置、detail、尺寸、JPEG 质量、输出预算和附加提示词。覆盖 IMAGE_ANALYSIS 的客户端配置并跳过原生目录重新指定模型；原生截图、OCR、图片读取及结果回注保持原链路。图片请求独立 ID、实际路由与 parentRequestId 进入轨迹，支持跨协程关联父会话。构建与静态 ABI 检查通过不代表实际视觉调用已验证。
+
+主线与 UI 已实现完整 Plan 和输入框思考等级补充 Plan。4.0 已构建并安装，真实页面和服务行为由用户人工验收。
+
+本轮增强设置已重新梳理为独立 `FrameLayout`、模块页面栈和系统返回调度，不再修改宿主导航状态。入口仍复用原应用“开发者工具”下方的 Compose 列表项；内部页面使用直接 Android View、宿主主题色和原应用 10dp 卡片圆角，统一处理状态栏、导航栏、键盘、分组列表、草稿、滚动位置和异步回调。会话、记忆、Skill、画像、语音记录与任务列表分批展示。
+
+思考等级使用原弹层关闭回调，不再共享静态 Composer 状态。统计读取移出主线程，聊天详情按消息 `requestId` 关联轨迹。TTS 提供处理后 WAV 导出，MCP 启停后重新读取状态；定时任务补齐原生任务创建/编辑、周期规则、模型、工具白名单与执行策略。实际点击、返回、视觉效果和真实服务调用均未由构建流程验证。
+
+- **思考等级**：按模型协议提供可用选项，不再提供自定义等级编辑入口。DeepSeek 提供 Default、low、high、max（medium/xhigh 仅为 high 的映射，不单独显示）；`reasoning_effort` 提供 Default、low、medium、high；开关型协议只提供 Default 和开关。选择按会话和模型保存，下一轮请求生效，工具续轮和重试沿用同一快照。
+- **定时任务**：顺序支持 Agent、原生工具、MCP、TTS 和通知步骤；`${previous}` 传递上一步结果。任务和步骤可分别固定模型、Prompt 与工具白名单；固定工具走原生权限与执行链。支持重叠排队、错过触发补跑、执行检查点和重试快照。
+- **压缩与摘要**：会话级触发比例和最小 Token、保留轮次、关闭自动压缩、摘要编辑与重建；摘要提示词、输出预算和独立模型路由可配置。记录压缩决策、消息范围和 Token 快照。
+- **TTS**：原生播放队列接入 Vocu 与自定义 HTTP API，支持角色市场、长文任务、原始音频、JSON URL、SSE PCM、异步任务、语速音调、原始/处理后 WAV 和字幕导出。原生预设未指定音色时跟随当前原生配置。
+- **观测**：区分逻辑请求与 attempt，缺失 usage 显示 `—`；图片分析跨协程保存 parentRequestId，聊天、视觉、摘要和定时任务路由分别记录。
+
+## 3.2 基础提示词追加
+
+基础提示词编辑页内提供追加内容输入和“前置追加到基础提示词 / 后置追加到基础提示词”。操作直接合并到当前全文、启用自定义内容并清空追加输入；保存后写入原有 `base/main` 文档，下次请求由 `PromptEngine.base` 应用。快捷语音提示词同样支持这两种追加。查看原文或在增强设置内切换页面时，当前文本、开关和追加草稿保留到退出增强设置；只有点击保存才写入生效配置。
+
+本版本按要求暂缓 UI 风格、动画和返回导航改造，沿用 3.1 的界面。未完成的 UI 工作保存在 `work/ui-deferred`，不参与编译。
+
+## 3.1 提示词规则
+
+参考 DeepSeek-Harness 的有序规则栈，预设编辑页直接提供“前置追加”“后置追加”。其他操作包括指定片段前/后插入、整体替换、删除片段、正则替换和普通文本替换；编辑页仅显示当前操作需要的字段。新预设默认应用于完整系统提示词，现有预设保留原位置。前后追加保留原生组装文本，预览与实际应用使用同一规则函数。规则自上而下执行，后执行的前置追加会位于更前面。
 
 ## 功能
 
-- **模型与生成**：按 API 地址隔离配置，支持模型 ID、上下文窗口、输出预算、扩展 JSON，以及跟随聊天或独立配置的图片理解服务。
-- **思考等级**：按模型协议提供可用选项。DeepSeek 提供 Default、low、high、max；`reasoning_effort` 提供 Default、low、medium、high；`thinking_type` 和 `enable_thinking` 提供 Default 和开关。选择按会话和模型保存，下一轮请求生效。Default 不发送模块指定的思考字段。
-- **Prompt 与上下文**：编辑基础提示词和有序预设规则，预览应用前后差异；支持消息修改、排除、追加、保留策略、摘要和长期记忆管理。
-- **Skill 与 MCP**：导入、编辑和导出 Skill；配置 HTTP MCP 连接器、工具暴露状态和手动调用。
-- **语音与 TTS**：接入原生播放队列，支持原生语音、Vocu 和自定义 HTTP API，以及角色、长文、多角色生成、字幕、解码后和处理后的 WAV 导出。
-- **定时任务**：沿用原生 Scheduler，支持 Agent、原生工具、MCP、TTS 和通知步骤，配置任务及步骤级模型、工具白名单、重叠和错过执行策略。
-- **观测与界面**：查看请求、思考、工具调用和用量轨迹。增强设置使用独立页面栈，处理系统返回、状态栏、键盘、草稿和滚动位置。
+入口位于小溪原生设置列表的“开发者工具”下方，名称为“增强设置”。入口复用宿主 Compose 列表项；子页使用当前宿主 Activity 内的原生 Android 控件，适配浅色、深色、系统返回和键盘。
 
-DeepSeek 的 `medium` 和 `xhigh` 是 `high` 的映射，不作为独立档位展示；`max` 是独立强度。参考 [DeepSeek Thinking Mode 文档](https://api-docs.deepseek.com/guides/thinking_mode/)。
+- **模型与生成**：保留按 API 地址隔离的通用 Chat Completions 适配、模型 ID、思考协议与强度、思考预算、上下文窗口、输出上限、JSON 参数覆盖。继续使用小溪原有 API Key。
+- **Prompt 与预设**：主提示词和快捷语音附加提示词；全局 / 会话预设；有序 prepend、append、insert、replace、remove、substitute、literal 规则；启停、排序、复制、JSON 导入导出；前后内容、差异、来源片段和实际请求查看。base 修改基础提示词，assembled 接管最终片段顺序并重新计算预算。
+- **上下文**：会话列表、原始与有效快照、消息修改 / 排除、固定到系统上下文、追加消息的编辑排序删除、修改方案导入导出、摘要覆盖、清除旧摘要重建、保留最近 N 轮及关闭原生压缩。修改以独立覆盖方案保存，下一次构建请求生效；原始聊天记录保持可查看。
+- **长期记忆与画像**：记忆搜索、新增、修改、删除及 JSON 导入导出；画像和表达风格编辑。写入调用宿主原生服务，记忆索引与画像事件按原生流程更新。
+- **Skill 与工具**：ZIP 多选、文件夹、单独 SKILL.md 导入；新建技能、编辑说明和文件、添加脚本、复制自定义副本、导出、启停、卸载、准备依赖。安装、更新、索引、启停和依赖使用小溪原生服务。提供原生工具包市场入口、已安装 MCP 定义和工具查看。现有市场安装与授权界面继续由原 APP 管理。
+- **对话详情**：在原生执行过程下增加可折叠的思考与工具详情，包括参数、结果和流式内容。
+- **会话统计**：统计条嵌在输入框上方，显示输入 / 输出 Token、缓存命中数及比例、上下文估算 / 窗口、轮数 / 步数和速度；独立入口打开统计、轨迹及上下文。详情含首 Token 延迟、累计和分轮统计。
+- **轨迹**：实际模型请求、思考、输出、工具调用及原生遥测事件；搜索、分页、时间轴、详情与整段 JSON 导出；可查看原生历史遥测。
 
-## 运行环境
+统计中的 `—` 表示没有对应服务端数据，`≈` 表示估算。流式期间速度按已收到文本估算，结束后的速度使用服务端输出 Token 与接收时间。累计统计标明已上报请求数。模块新增的完整请求轨迹从启用本版本开始采集。
 
-- LSPosed，Xposed API 82 (Legacy)。
-- 魅族小溪 13.1.1（versionCode 13001001）。
+## 使用
 
-## 安装与配置
+在小溪原有“模型设置”填写并保存 API 地址、模型和密钥，然后进入“设置 → 开发者工具下方 → 增强设置”。Prompt、上下文和模型设置下一次请求生效；显示开关重新进入对话生效。
 
-1. 在 LSPosed 中启用模块，并将作用域设为 `com.meizu.voiceassistant`。
-2. 重新打开小溪，在原应用的模型设置中配置 API 地址、模型和密钥。
-3. 打开“设置 → 开发者工具下方 → 增强设置”。
-4. 在聊天输入框的“思考等级”中选择当前模型支持的选项。选择从下一轮请求开始生效。
+本模块适配小溪已实现的 OpenAI-compatible Chat Completions，不进行 Anthropic Messages、Gemini GenerateContent 或 Responses 协议转换。窗口配置改变本地预算，实际可接受的上下文由所用模型服务决定。
 
-## 目录说明
+## 构建与安装
 
-```text
-app/src/main/          模块 Java、资源、清单、提示词和许可证
-app/src/compileOnly/   仅供编译的 Kotlin 协程 stub，不进入 APK
-lib/                   Xposed API 82 编译依赖
-tests/                 音频处理 JVM 测试
-tools/audit_host.py    宿主 DEX 字面量 ABI 检查
-build.ps1              标准构建脚本
+```powershell
+./build.ps1
+adb install --no-incremental -r build/xiaoxi-byok-api102.apk
+adb shell am force-stop com.meizu.voiceassistant
 ```
 
+需要 JDK 17、Android SDK build-tools 36.0.0 和 platforms/android-37.0/android.jar。
+产物：`build/xiaoxi-byok-api102.apk`，版本 5.0 / versionCode 12，使用现有 `debug.jks` 签名。
+每次构建使用独立对象目录，避免旧 class 文件混入产物。
+
+`app/src/compileOnly` 仅供编译，不进入 APK。宿主协程桥由以宿主 ClassLoader 为父的 DexClassLoader 加载，复用宿主 Kotlin 运行时。
+
+```powershell
+python -X utf8 tools/audit_host.py <VoiceAssistant.apk>
+```
+
+此脚本直接读取 DEX 检查反射类、Hook 方法签名和构造参数数量，避免 JADX 在 Windows 上改名造成误判。`tools/audit_api102.py` 另外检查模块元数据与 DEX 中的框架类定义。它们属于静态检查，不替代运行验证。
+
+## 存储与代码
+
+- 旧模型配置：宿主 SharedPreferences `xiaoxi_byok`。
+- 新增预设、上下文覆盖和轨迹：宿主数据库 `xiaoxi_enhance.db`。
+- 原生聊天、记忆、画像、技能继续由各自原生存储和服务管理。
+- `MainHook` / `Profile`：启动入口和请求适配。
+- `ComposeBridge` / `NativeUi` / `FilesUi`：原生界面与文件选择。
+- `PromptEngine` / `ContextEditor` / `Compression`：提示词与上下文。
+- `Capabilities` / `Host`：宿主服务及协程调用。
+- `Trace` / `Store`：采集、统计与持久化。
+
+本版按用户要求，安装后不自动打开 APP、不发起模型调用，功能由用户人工验证。

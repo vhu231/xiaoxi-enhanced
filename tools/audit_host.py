@@ -51,9 +51,47 @@ def apk_classes(apk):
             if re.fullmatch(r'classes\d*\.dex',name):result.update(read_dex(z.read(name)))
     return result
 
+def split_args(source):
+    result=[];depth=0;quote=None;escape=False;start=0
+    for index,ch in enumerate(source):
+        if quote:
+            if escape:escape=False
+            elif ch=='\\':escape=True
+            elif ch==quote:quote=None
+        elif ch in ('"',"'"):quote=ch
+        elif ch in '({[':depth+=1
+        elif ch in ')}]':
+            if ch==')' and depth==0:
+                result.append(source[start:index].strip())
+                return result
+            depth-=1
+        elif ch==',' and depth==0:
+            result.append(source[start:index].strip());start=index+1
+    raise ValueError('Unclosed call')
+
+def check_direct_hook_signatures(classes, source, path, errors, checks):
+    primitive_boxed={'Z':'Ljava/lang/Boolean;','I':'Ljava/lang/Integer;','J':'Ljava/lang/Long;','F':'Ljava/lang/Float;','D':'Ljava/lang/Double;'}
+    literals={'String.class':'Ljava/lang/String;','Integer.class':'Ljava/lang/Integer;','OutputStream.class':'Ljava/io/OutputStream;','boolean.class':'Z','int.class':'I','long.class':'J','float.class':'F','double.class':'D'}
+    for match in re.finditer(r'Xposed\.findAndHookMethod\(\s*"([\w.$]+)"\s*,\s*\w+\s*,\s*"([\w$]+)"\s*,',source):
+        class_name,method_name=match.groups()
+        args=split_args(source[match.end():]);expected=[]
+        for arg in args[:-1]:
+            arg=arg.strip()
+            if arg in literals:expected.append(literals[arg]);continue
+            nested=re.fullmatch(r'Reflect\.findClass\(\s*"([\w.$]+)"\s*,\s*\w+\s*\)',arg)
+            expected.append('L'+nested.group(1).replace('.','/')+';' if nested else None)
+        row=classes.get('L'+class_name.replace('.','/')+';',{})
+        checks+=1
+        found=False
+        for actual_name,actual_args,_ in row.get('methods',[]):
+            if actual_name!=method_name or len(actual_args)!=len(expected):continue
+            if all(want is None or have==want or primitive_boxed.get(have)==want for have,want in zip(actual_args,expected)):
+                found=True;break
+        if not found:errors.append(f'{path.name}: signature {class_name}.{method_name}{tuple(expected)}')
+    return checks
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('apk');parser.add_argument('--out',default='work/host-abi-full.json');args=parser.parse_args()
-    Path(args.out).parent.mkdir(parents=True,exist_ok=True)
     classes=apk_classes(args.apk);Path(args.out).write_text(json.dumps(classes,ensure_ascii=False),encoding='utf-8')
     errors=[];checks=0
     for path in Path('app/src/main/java').rglob('*.java'):
@@ -83,6 +121,8 @@ def main():
             row=classes.get('L'+name.replace('.','/')+';',{})
             checks+=1
             if not any(m[0]=='<init>' and len(m[1])==commas for m in row.get('methods',[])):errors.append(f'{path.name}: constructor {name}({commas} args)')
+    for path in Path('app/src/main/java').rglob('*.java'):
+        checks=check_direct_hook_signatures(classes,path.read_text(encoding='utf-8-sig'),path,errors,checks)
     print(f'DEX classes: {len(classes)}; literal ABI checks: {checks}; errors: {len(errors)}')
     for error in errors:print(error)
     raise SystemExit(bool(errors))

@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 import java.util.regex.*;
 import org.json.*;
@@ -192,18 +191,16 @@ final class PromptEngine {
             scope.set((String) p.getObjectExtra("previous"));
           }
         };
-    XposedBridge.hookAllMethods(
-        Host.cls("com.flyme.agentos.agent.core.context.pipeline.e"), "a", bind);
-    XposedBridge.hookAllMethods(
-        Host.cls("com.flyme.agentos.agent.core.context.pipeline.e"), "b", bind);
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllMethods(Host.cls("com.flyme.agentos.agent.core.context.pipeline.e"), "a", bind);
+    Xposed.hookAllMethods(Host.cls("com.flyme.agentos.agent.core.context.pipeline.e"), "b", bind);
+    Xposed.hookAllConstructors(
         Host.cls("com.flyme.agentos.agent.core.context.y"),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
             if (scope.get() != null) envelopeSessions.put(p.thisObject, scope.get());
           }
         });
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls("Z4.n"),
         new XC_MethodHook() {
           protected void beforeHookedMethod(MethodHookParam p) {
@@ -236,7 +233,7 @@ final class PromptEngine {
                 applyPrompt(original, (String) p.args[1], preset.optJSONArray("rules"));
             List<Object> segments = new ArrayList<>();
             Object layer =
-                XposedHelpers.getStaticObjectField(
+                Reflect.getStaticObjectField(
                     Host.cls("com.flyme.agentos.agent.core.context.PromptLayer"), "STABLE_PREFIX");
             for (int i = 0; i < changed.length(); i++) {
               JSONObject part = changed.optJSONObject(i);
@@ -251,7 +248,7 @@ final class PromptEngine {
                       Host.field(template, "d"),
                       part.optString("text"),
                       estimate(part.optString("text")),
-                      XposedHelpers.getIntField(template, "g"),
+                      Reflect.getIntField(template, "g"),
                       Host.field(template, "h"),
                       Host.field(template, "i"),
                       Host.field(template, "j"),
@@ -269,10 +266,10 @@ final class PromptEngine {
             Object report = p.args[2];
             Object estimator = Host.field(Host.services.get("fusion"), "a");
             int total = ((Number) Host.call(estimator, "c", p.args[1])).intValue();
-            XposedHelpers.setIntField(report, "i", total);
+            Reflect.setIntField(report, "i", total);
             for (String f : new String[] {"j", "k", "l", "m", "n", "o", "p"})
-              XposedHelpers.setIntField(report, f, 0);
-            XposedHelpers.setIntField(report, "q", total);
+              Reflect.setIntField(report, f, 0);
+            Reflect.setIntField(report, "q", total);
             Store.save(
                 "promptEffective",
                 sid,

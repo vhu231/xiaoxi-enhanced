@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.*;
 import org.json.*;
 
@@ -11,7 +10,7 @@ final class ContextEditor {
 
   static Object message(String role, String content) {
     Object r =
-        XposedHelpers.callStaticMethod(
+        Reflect.callStaticMethod(
             Host.cls("com.flyme.agentos.llm.api.model.Message$Role"),
             "valueOf",
             role.toUpperCase(Locale.ROOT));
@@ -80,7 +79,7 @@ final class ContextEditor {
   }
 
   static void install() {
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls("com.flyme.agentos.agent.core.context.m"),
         new XC_MethodHook() {
           protected void afterHookedMethod(MethodHookParam p) {
@@ -90,7 +89,7 @@ final class ContextEditor {
             if (edits != null && edits.length() > 0) Store.setting(sid, "rebuild", true);
           }
         });
-    XposedBridge.hookAllConstructors(
+    Xposed.hookAllConstructors(
         Host.cls("com.flyme.agentos.agent.core.context.j"),
         new XC_MethodHook() {
           protected void beforeHookedMethod(MethodHookParam p) {
@@ -107,8 +106,7 @@ final class ContextEditor {
             List<?> history = (List<?>) p.args[3];
             List<Object> withoutAdditions = new ArrayList<>();
             for (Object m : history)
-              if (!Boolean.TRUE.equals(
-                  XposedHelpers.getAdditionalInstanceField(m, "xiaoxi.addition")))
+              if (!Boolean.TRUE.equals(Reflect.getAdditionalInstanceField(m, "xiaoxi.addition")))
                 withoutAdditions.add(m);
             history = withoutAdditions;
             Store.save("contextSource", sid, Json.o("messages", pack(history), "input", p.args[1]));
@@ -121,7 +119,7 @@ final class ContextEditor {
               for (Object record : records) {
                 List<?> msgs =
                     (List<?>)
-                        XposedHelpers.callStaticMethod(
+                        Reflect.callStaticMethod(
                             Host.cls("com.flyme.agentos.session.persistence.b"),
                             "c",
                             record,
@@ -213,7 +211,7 @@ final class ContextEditor {
               for (int i = 0; i < additions.length(); i++) {
                 JSONObject a = additions.optJSONObject(i);
                 Object added = message(a.optString("role", "user"), a.optString("content"));
-                XposedHelpers.setAdditionalInstanceField(added, "xiaoxi.addition", true);
+                Reflect.setAdditionalInstanceField(added, "xiaoxi.addition", true);
                 extra.add(added);
               }
               effective.addAll(0, extra);

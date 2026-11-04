@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.ArrayList;
 import java.util.List;
 import org.json.JSONArray;
@@ -15,7 +14,7 @@ final class ReasoningUi {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.components.input.p0"),
         "a",
         new XC_MethodHook() {
@@ -29,7 +28,7 @@ final class ReasoningUi {
             p.args[0] = Host.make("com.flyme.agentos.app.common.ui.components.input.t0", label);
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.components.input.p0"),
         "d",
         new XC_MethodHook() {
@@ -56,14 +55,14 @@ final class ReasoningUi {
                         Reasoning.select(session, profile.endpoint, profile.model, id);
                         Host.call(dismiss, "invoke");
                       } catch (Throwable error) {
-                        XposedBridge.log(error);
+                        Xposed.log(error);
                         NativeUi.error(error);
                       }
                       return Host.unit();
                     });
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.ui.components.input.p0"),
         "c",
         new XC_MethodHook() {
@@ -75,7 +74,7 @@ final class ReasoningUi {
             panel.remove();
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("androidx.compose.material3.w6"),
         "b",
         new XC_MethodHook() {

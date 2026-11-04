@@ -5,7 +5,6 @@ import android.content.*;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.*;
-import de.robv.android.xposed.*;
 import java.io.*;
 import java.util.*;
 import java.util.function.Consumer;
@@ -57,7 +56,7 @@ final class FilesUi {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Activity.class,
         "onActivityResult",
         new XC_MethodHook() {
@@ -103,7 +102,7 @@ final class FilesUi {
             }
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Activity.class,
         "onDestroy",
         new XC_MethodHook() {

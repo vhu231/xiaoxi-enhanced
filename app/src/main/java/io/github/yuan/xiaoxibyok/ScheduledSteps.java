@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.util.UUID;
 import java.util.concurrent.*;
 import org.json.*;
@@ -13,7 +12,7 @@ final class ScheduledSteps {
   static final String EXECUTOR = "com.flyme.agentos.app.common.scheduler.executor.m";
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls(
             "com.flyme.agentos.app.common.scheduler.executor.TaskExecutor$executeWithRetry$result$1"),
         "invokeSuspend",
@@ -21,21 +20,20 @@ final class ScheduledSteps {
           protected void beforeHookedMethod(MethodHookParam p) {
             Object coroutine = p.thisObject;
             if (Boolean.TRUE.equals(
-                XposedHelpers.getAdditionalInstanceField(coroutine, "xiaoxi.steps"))) {
+                Reflect.getAdditionalInstanceField(coroutine, "xiaoxi.steps"))) {
               try {
-                XposedHelpers.callStaticMethod(
-                    Host.cls("kotlin.ResultKt"), "throwOnFailure", p.args[0]);
+                Reflect.callStaticMethod(Host.cls("kotlin.ResultKt"), "throwOnFailure", p.args[0]);
                 p.setResult(p.args[0]);
               } catch (Throwable error) {
                 p.setThrowable(error.getCause() == null ? error : error.getCause());
               }
               return;
             }
-            if (XposedHelpers.getIntField(coroutine, "label") != 0) return;
+            if (Reflect.getIntField(coroutine, "label") != 0) return;
             Object task = Host.field(coroutine, "$task");
             JSONObject config = Store.get("schedule", Host.text(task, "a"));
             if (!config.optBoolean("enabled") || config.optJSONArray("steps") == null) return;
-            XposedHelpers.setAdditionalInstanceField(coroutine, "xiaoxi.steps", true);
+            Reflect.setAdditionalInstanceField(coroutine, "xiaoxi.steps", true);
             workers.execute(
                 () -> {
                   Object result;
@@ -43,20 +41,20 @@ final class ScheduledSteps {
                     result = run(coroutine, config);
                   } catch (Throwable error) {
                     result =
-                        XposedHelpers.callStaticMethod(
+                        Reflect.callStaticMethod(
                             Host.cls("kotlin.ResultKt"), "createFailure", error);
                   }
                   Host.call(coroutine, "resumeWith", result);
                 });
             p.setResult(
-                XposedHelpers.callStaticMethod(
+                Reflect.callStaticMethod(
                     Host.cls("kotlin.coroutines.intrinsics.IntrinsicsKt"),
                     "getCOROUTINE_SUSPENDED"));
           }
         });
     Host.capture(EXECUTOR, "taskExecutor");
     Host.capture("com.flyme.agentos.app.common.scheduler.executor.f", "taskQueue");
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls(EXECUTOR),
         "w",
         new XC_MethodHook() {
@@ -93,7 +91,7 @@ final class ScheduledSteps {
             }
           }
         });
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.app.common.scheduler.executor.f"),
         "f",
         new XC_MethodHook() {
@@ -114,7 +112,7 @@ final class ScheduledSteps {
                 () -> {
                   try {
                     Object triggerType =
-                        XposedHelpers.callStaticMethod(
+                        Reflect.callStaticMethod(
                             Host.cls("com.flyme.agentos.scheduler.model.TriggerType"),
                             "valueOf",
                             pending.optString("triggerType"));
@@ -125,7 +123,7 @@ final class ScheduledSteps {
                         triggerType,
                         pending.optLong("timestamp"));
                   } catch (Throwable error) {
-                    XposedBridge.log(error);
+                    Xposed.log(error);
                     Store.event(
                         taskId, "scheduler.deferred.error", Json.o("error", error.toString()));
                   }
@@ -155,7 +153,7 @@ final class ScheduledSteps {
     Object task = Host.field(coroutine, "$task"), session = Host.field(coroutine, "$session");
     Object context = Host.call(coroutine, "getContext");
     String taskId = Host.text(task, "a"), sid = Host.text(session, "a");
-    long timestamp = XposedHelpers.getLongField(coroutine, "$messageTimestamp");
+    long timestamp = Reflect.getLongField(coroutine, "$messageTimestamp");
     String runId = taskId + ":" + sid + ":" + timestamp;
     JSONObject state = Store.get("scheduleRun", runId);
     if (!state.has("config")) {
@@ -169,9 +167,7 @@ final class ScheduledSteps {
     for (int i = outputs.length(); i < steps.length(); i++) {
       Object job =
           Host.call(
-              context,
-              "get",
-              XposedHelpers.getStaticObjectField(Host.cls("kotlinx.coroutines.o0"), "a"));
+              context, "get", Reflect.getStaticObjectField(Host.cls("kotlinx.coroutines.o0"), "a"));
       if (job != null && (Boolean) Host.call(job, "isCancelled")) throw new CancellationException();
       JSONObject step = steps.getJSONObject(i);
       String previous = outputs.length() == 0 ? "" : outputs.getString(outputs.length() - 1);
@@ -223,8 +219,7 @@ final class ScheduledSteps {
                             session,
                             "t",
                             request,
-                            XposedHelpers.getIntField(
-                                Host.field(coroutine, "$retryCount"), "element"),
+                            Reflect.getIntField(Host.field(coroutine, "$retryCount"), "element"),
                             timestamp,
                             null));
               }

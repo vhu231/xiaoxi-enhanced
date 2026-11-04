@@ -15,8 +15,6 @@ import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,19 +29,19 @@ final class NativeStyle {
           Host.call(
               composer,
               "k",
-              XposedHelpers.getStaticObjectField(Host.cls("androidx.compose.material3.O0"), "a"));
+              Reflect.getStaticObjectField(Host.cls("androidx.compose.material3.O0"), "a"));
       Map<String, Integer> theme = new HashMap<>();
       for (String token : new String[] {"q", "s", "a", "n", "D"}) {
-        long value = XposedHelpers.getLongField(colors, token);
+        long value = Reflect.getLongField(colors, token);
         theme.put(
             token,
             (Integer)
-                XposedHelpers.callStaticMethod(
+                Reflect.callStaticMethod(
                     Host.cls("androidx.compose.ui.graphics.C"), "toArgb-8_81llA", value));
       }
       themes.put(NativeUi.dark((Context) Host.app()), theme);
     } catch (Throwable error) {
-      XposedBridge.log(error);
+      Xposed.log(error);
     }
   }
 
@@ -82,7 +80,7 @@ final class NativeStyle {
 
   static float radius() {
     try {
-      return XposedHelpers.getStaticFloatField(Host.cls("S6.a"), "g0");
+      return Reflect.getStaticFloatField(Host.cls("S6.a"), "g0");
     } catch (Throwable error) {
       return 10;
     }

@@ -1,6 +1,5 @@
 package io.github.yuan.xiaoxibyok;
 
-import de.robv.android.xposed.*;
 import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -105,7 +104,7 @@ final class TaskModelScope implements AutoCloseable {
       Object taskClient = Host.call(taskBinding, "b");
       Object taskBudget = Host.field(Host.field(taskLoop, "e"), "b");
       budgets.put(taskBudget, profile);
-      XposedHelpers.setObjectField(taskLoop, "a", taskClient);
+      Reflect.setObjectField(taskLoop, "a", taskClient);
       loop = taskLoop;
       originalClient = original;
       binding = taskBinding;
@@ -120,7 +119,7 @@ final class TaskModelScope implements AutoCloseable {
   }
 
   static void install() {
-    XposedBridge.hookAllMethods(
+    Xposed.hookAllMethods(
         Host.cls("com.flyme.agentos.llm.impl.routing.o"),
         "c",
         new XC_MethodHook() {
@@ -134,7 +133,7 @@ final class TaskModelScope implements AutoCloseable {
   }
 
   public void close() {
-    XposedHelpers.setObjectField(loop, "a", originalClient);
+    Reflect.setObjectField(loop, "a", originalClient);
     budgets.remove(budget);
     configurations.remove(Host.field(Host.call(binding, "c"), "f"));
     associations.remove(associationId);
@@ -142,7 +141,7 @@ final class TaskModelScope implements AutoCloseable {
     try {
       Host.call(binding, "invalidate");
     } catch (Throwable error) {
-      XposedBridge.log(error);
+      Xposed.log(error);
     }
   }
 }

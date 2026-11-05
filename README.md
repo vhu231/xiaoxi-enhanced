@@ -2,7 +2,7 @@
 
 针对实机小溪 13.1.1（versionCode 13001001）的 LSPosed 模块，使用 `io.github.libxposed:api:102.0.0`。
 
-## 5.0 API 102 迁移（待实机验收）
+## 5.0 API 102 迁移
 
 - 模块入口改为 `XposedModule`，通过 `onModuleLoaded/onPackageReady` 初始化，仍只注入小溪主进程。
 - Hook 使用 `XposedInterface.Hooker`、`Chain` 和 `Invoker`；`Host` 提供薄适配层，业务逻辑不变，不再调用 legacy `de.robv.android.xposed`。
@@ -11,7 +11,7 @@
 - 宿主 SharedPreferences、数据库、模型预设、Prompt、TTS、MCP、定时任务和独立 UI 页面栈保持原有行为。
 - API 82 实现保留在 `legacy` 分支，API 102 为默认 `main` 分支。两个版本不得同时启用。运行时的框架版本、模块发现和 Hook 执行仍需人工验收，不能由编译或静态 ABI 检查代替。
 
-## 4.0 完整 Plan（待人工验证）
+## 4.0 完整 Plan
 
 模型与生成页增加覆盖原生读屏接口、跟随聊天/独立视觉配置、detail、尺寸、JPEG 质量、输出预算和附加提示词。覆盖 IMAGE_ANALYSIS 的客户端配置并跳过原生目录重新指定模型；原生截图、OCR、图片读取及结果回注保持原链路。图片请求独立 ID、实际路由与 parentRequestId 进入轨迹，支持跨协程关联父会话。构建与静态 ABI 检查通过不代表实际视觉调用已验证。
 
@@ -35,7 +35,7 @@
 
 ## 3.1 提示词规则
 
-参考 DeepSeek-Harness 的有序规则栈，预设编辑页直接提供“前置追加”“后置追加”。其他操作包括指定片段前/后插入、整体替换、删除片段、正则替换和普通文本替换；编辑页仅显示当前操作需要的字段。新预设默认应用于完整系统提示词，现有预设保留原位置。前后追加保留原生组装文本，预览与实际应用使用同一规则函数。规则自上而下执行，后执行的前置追加会位于更前面。
+预设编辑页直接提供“前置追加”“后置追加”。其他操作包括指定片段前/后插入、整体替换、删除片段、正则替换和普通文本替换；编辑页仅显示当前操作需要的字段。新预设默认应用于完整系统提示词，现有预设保留原位置。前后追加保留原生组装文本，预览与实际应用使用同一规则函数。规则自上而下执行，后执行的前置追加会位于更前面。
 
 ## 功能
 
@@ -57,26 +57,6 @@
 在小溪原有“模型设置”填写并保存 API 地址、模型和密钥，然后进入“设置 → 开发者工具下方 → 增强设置”。Prompt、上下文和模型设置下一次请求生效；显示开关重新进入对话生效。
 
 本模块适配小溪已实现的 OpenAI-compatible Chat Completions，不进行 Anthropic Messages、Gemini GenerateContent 或 Responses 协议转换。窗口配置改变本地预算，实际可接受的上下文由所用模型服务决定。
-
-## 构建与安装
-
-```powershell
-./build.ps1
-adb install --no-incremental -r build/xiaoxi-byok-api102.apk
-adb shell am force-stop com.meizu.voiceassistant
-```
-
-需要 JDK 17、Android SDK build-tools 36.0.0 和 platforms/android-37.0/android.jar。
-产物：`build/xiaoxi-byok-api102.apk`，版本 5.0 / versionCode 12，使用现有 `debug.jks` 签名。
-每次构建使用独立对象目录，避免旧 class 文件混入产物。
-
-`app/src/compileOnly` 仅供编译，不进入 APK。宿主协程桥由以宿主 ClassLoader 为父的 DexClassLoader 加载，复用宿主 Kotlin 运行时。
-
-```powershell
-python -X utf8 tools/audit_host.py <VoiceAssistant.apk>
-```
-
-此脚本直接读取 DEX 检查反射类、Hook 方法签名和构造参数数量，避免 JADX 在 Windows 上改名造成误判。`tools/audit_api102.py` 另外检查模块元数据与 DEX 中的框架类定义。它们属于静态检查，不替代运行验证。
 
 ## 存储与代码
 
